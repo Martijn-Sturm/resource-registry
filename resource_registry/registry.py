@@ -1,5 +1,6 @@
 import typing
 import sys
+from resource_registry import serialization
 
 Kwargs = typing.Dict[str, str]
 
@@ -44,16 +45,17 @@ class ResourceNotRegistered(ValueError):
 class NameRegistry:
     def __init__(
         self,
-        formatting_function: typing.Callable[[Kwargs], str],
         args_description: Kwargs,
+        fixed_args: typing.Optional[Kwargs] = None,
     ) -> None:
-        self._formatting_func = formatting_function
         self._args = [arg for arg in args_description]
         self._args_description = args_description
+        self._fixed_args = fixed_args if fixed_args else {}
         self._registry = {}
-        self._validate_instantiation()
+        # self._validate_instantiation()
 
-    def register(self, args: Kwargs, force_overwrite: bool = False):
+    def register(self, args: Kwargs, value: str, force_overwrite: bool = False):
+        args = args | self._fixed_args
         self._check_kwargs_is_consistent(args)
         registry_key = self._args_to_tuple(args)
         if not force_overwrite:
@@ -64,9 +66,10 @@ class NameRegistry:
             else:
                 raise ResourceAlreadyRegistered(args, registry_key)
 
-        self._registry.update({registry_key: self._formatting_func(args)})
+        self._registry.update({registry_key: value})
 
     def retrieve(self, args: Kwargs):
+        args = args | self._fixed_args
         self._check_kwargs_is_consistent(args)
         registry_key = self._args_to_tuple(args)
         try:
@@ -96,12 +99,21 @@ class NameRegistry:
                 undefined_args,
             )
 
-    def _validate_instantiation(self):
-        try:
-            self._formatting_func(self._args_description)
-        except KeyError as err:
-            raise ArgumentMismatch(
-                "mismatch between formatter func expected args, and provided kwargs description in definition",
-                "argument with key missing:",
-                *err.args,
-            )
+    # def _validate_instantiation(self):
+    #     try:
+    #         self._formatting_func(self._args_description)
+    #     except KeyError as err:
+    #         raise ArgumentMismatch(
+    #             "mismatch between formatter func expected args, and provided kwargs description in definition",
+    #             "argument with key missing:",
+    #             *err.args,
+    #         )
+
+    def serialize(self, path: str, serializer: serialization.Serializer):
+        serializer.write(self._registry, path)
+
+    def parse(self, path: str, serializer: serialization.Serializer):
+        registry = serializer.load(path)
+        if not isinstance(registry, typing.Dict):
+            raise IOError("expected dict, but is:", type(registry))
+        self._registry = registry
