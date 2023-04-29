@@ -11,6 +11,15 @@ packages = [{include = "resource_registry"}]
 python = "^3.10"
 
 
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+flake8 = "^6.0.0"
+pre-commit = "^3.2.2"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.3.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
